@@ -42,6 +42,7 @@ xbase = do
     incompleteTransaction' <- incompleteTransactionParser
     encrypted'             <- encryptedParser
     freeRecordThreadParser
+    multiUserParser
     return $ DBF
         version'
         lastUpdate'
@@ -91,6 +92,10 @@ encryptedParser =
 -- Free record thread. (Reserved for LAN only). Ignored.
 freeRecordThreadParser :: A.Parser ()
 freeRecordThreadParser = A.take 4 >> return ()
+
+-- Reserved for multi-user dBASE; (dBASE III+ - )
+multiUserParser :: A.Parser ()
+multiUserParser = A.take 8 >> return ()
 
 data Version = FoxBase             -- FoxBase
              | NoDBT               -- File without DBT
