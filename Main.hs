@@ -1,12 +1,12 @@
 module Main where
 
-import Control.Applicative ((<$>))
+import Control.Applicative ((<$>), (<|>))
 import Data.ByteString as B (readFile)
 import Data.Time.Calendar (Day, fromGregorian)
 import System.Environment (getArgs)
 
 import Data.Attoparsec.Binary (anyWord16le, anyWord32le)
-import Data.Attoparsec.ByteString (Parser, anyWord8, parseOnly)
+import Data.Attoparsec.ByteString (Parser, anyWord8, parseOnly, word8)
 
 main :: IO ()
 main = do
@@ -16,22 +16,30 @@ main = do
         _      -> error "Please supply a .dbf file as the first arg."
 
 data DBF = DBF
-    { version       :: Version
-    , lastUpdate    :: Day
-    , numRecords    :: Int
-    , lengthHeader  :: Int
-    , lengthRecords :: Int
+    { version               :: Version
+    , lastUpdate            :: Day
+    , numRecords            :: Int
+    , lengthHeader          :: Int
+    , lengthRecords         :: Int
+    , incompleteTransaction :: Bool
     } deriving (Show)
 
 xbase :: Parser DBF
 xbase = do
-    version'       <- versionParser
-    lastUpdate'    <- lastUpdateParser
-    numRecords'    <- numRecordsParser
-    lengthHeader'  <- lengthHeaderParser
-    lengthRecords' <- lengthRecordsParser
+    version'               <- versionParser
+    lastUpdate'            <- lastUpdateParser
+    numRecords'            <- numRecordsParser
+    lengthHeader'          <- lengthHeaderParser
+    lengthRecords'         <- lengthRecordsParser
     reservedParser
-    return $ DBF version' lastUpdate' numRecords' lengthHeader' lengthRecords'
+    incompleteTransaction' <- incompleteTransactionParser
+    return $ DBF
+        version'
+        lastUpdate'
+        numRecords'
+        lengthHeader'
+        lengthRecords'
+        incompleteTransaction'
 
 versionParser :: Parser Version
 versionParser = toEnum . fromIntegral <$> anyWord8
@@ -59,6 +67,11 @@ lengthRecordsParser = (subtract 1) . fromIntegral <$> anyWord16le
 -- Reserved for dBASE IV (value is 0x0000). Ignored.
 reservedParser :: Parser ()
 reservedParser = anyWord16le >> return ()
+
+-- dBASE IV.
+incompleteTransactionParser :: Parser Bool
+incompleteTransactionParser =
+    (word8 0x00 >> return False) <|> (word8 0x01 >> return True)
 
 data Version = FoxBase             -- FoxBase
              | NoDBT               -- File without DBT
