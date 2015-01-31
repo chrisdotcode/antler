@@ -1,7 +1,8 @@
 module Main where
 
-import Control.Applicative ((<$>))
+import Control.Applicative ((<$>), (<*>))
 import Data.ByteString as B (readFile)
+import Data.Time.Calendar (Day, fromGregorian)
 import System.Environment (getArgs)
 
 import Data.Attoparsec.ByteString
@@ -13,13 +14,25 @@ main = do
         (x:_) -> B.readFile x >>= print . parseOnly xbase
         _      -> error "Please supply a .dbf file as the first arg."
 
-data DBF = DBF { version :: Version } deriving (Show)
+data DBF = DBF
+    { version    :: Version
+    , lastUpdate :: Day
+    } deriving (Show)
 
 xbase :: Parser DBF
-xbase = DBF <$> versionParser
+xbase = DBF <$> versionParser <*> lastUpdateParser
 
 versionParser :: Parser Version
 versionParser = toEnum . fromIntegral <$> anyWord8
+
+-- Little-endian; Year value has a range within 0x0-0xFF, and 1900 is added to
+-- that value. Therefore the date range is 1900-2155.
+lastUpdateParser :: Parser Day
+lastUpdateParser = do
+    year  <- (+ 1900) . fromIntegral <$> anyWord8
+    month <- fromIntegral <$> anyWord8
+    day   <- fromIntegral <$> anyWord8
+    return $ fromGregorian year month day
 
 data Version = FoxBase             -- FoxBase
              | NoDBT               -- File without DBT
@@ -53,13 +66,14 @@ instance Enum Version where
     toEnum 0x04 = DBASEIVNoMemo
     toEnum 0x05 = DBASEVNoMemo
     toEnum 0x07 = VISUALOBJECTSNoMemo
-    toEnum 0x30 = VisualFoxPro -- 0x30 also == VisualFoxProDBC; what's the
-                               -- difference?
+    toEnum 0x30 = VisualFoxPro -- 0x30 also == VisualFoxProDBC
     toEnum 0x31 = VisualFoxProAutoInc
     toEnum 0x43 = DBVMemo
     toEnum 0x7B = DBASEIVMemo
     toEnum 0x83 = DBT
-    toEnum 0x83 = DBASEIIIMemo
+    -- Matches the above, and there is no factor to discern between the two, so
+    -- just assume every field that matches 83 is DBT:
+    -- toEnum 0x83 = DBASEIIIMemo
     toEnum 0x87 = VISUALOBJECTSMemo
     toEnum 0x8B = DBASEIVMemo
     toEnum 0x8E = DBASEIVSQL
