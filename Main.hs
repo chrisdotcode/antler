@@ -3,6 +3,7 @@ module Main where
 import Control.Applicative ((<$>), (<|>))
 import Data.ByteString as B (readFile)
 import Data.Time.Calendar (Day, fromGregorian)
+import Data.Word (Word8)
 import System.Environment (getArgs)
 
 import qualified Data.Attoparsec.Binary as A (anyWord16le, anyWord32le)
@@ -29,6 +30,7 @@ data DBF = DBF
     , lengthRecords         :: Int
     , incompleteTransaction :: Bool
     , encrypted             :: Bool
+    , mdxFlag               :: Word8
     } deriving (Show)
 
 xbase :: A.Parser DBF
@@ -43,6 +45,7 @@ xbase = do
     encrypted'             <- encryptedParser
     freeRecordThreadParser
     multiUserParser
+    mdxFlag'               <- mdxFlagParser
     return $ DBF
         version'
         lastUpdate'
@@ -51,6 +54,7 @@ xbase = do
         lengthRecords'
         incompleteTransaction'
         encrypted'
+        mdxFlag'
 
 versionParser :: A.Parser Version
 versionParser = toEnum . fromIntegral <$> A.anyWord8
@@ -96,6 +100,10 @@ freeRecordThreadParser = A.take 4 >> return ()
 -- Reserved for multi-user dBASE; (dBASE III+ - )
 multiUserParser :: A.Parser ()
 multiUserParser = A.take 8 >> return ()
+
+-- Little-endian; MDX flag (dBASE IV).
+mdxFlagParser :: A.Parser Word8
+mdxFlagParser = A.anyWord8
 
 data Version = FoxBase             -- FoxBase
              | NoDBT               -- File without DBT
