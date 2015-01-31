@@ -5,8 +5,8 @@ import Data.ByteString as B (readFile)
 import Data.Time.Calendar (Day, fromGregorian)
 import System.Environment (getArgs)
 
-import Data.Attoparsec.Binary (anyWord32le)
-import Data.Attoparsec.ByteString (Parser(..), anyWord8, parseOnly)
+import Data.Attoparsec.Binary (anyWord16le, anyWord32le)
+import Data.Attoparsec.ByteString (Parser, anyWord8, parseOnly)
 
 main :: IO ()
 main = do
@@ -16,13 +16,18 @@ main = do
         _      -> error "Please supply a .dbf file as the first arg."
 
 data DBF = DBF
-    { version    :: Version
-    , lastUpdate :: Day
-    , numRecords :: Int
+    { version      :: Version
+    , lastUpdate   :: Day
+    , numRecords   :: Int
+    , lengthHeader :: Int
     } deriving (Show)
 
 xbase :: Parser DBF
-xbase = DBF <$> versionParser <*> lastUpdateParser <*> numRecordsParser
+xbase = DBF <$>
+    versionParser <*>
+    lastUpdateParser <*>
+    numRecordsParser <*>
+    lengthHeaderParser <*>
 
 versionParser :: Parser Version
 versionParser = toEnum . fromIntegral <$> anyWord8
@@ -38,6 +43,9 @@ lastUpdateParser = do
 
 numRecordsParser :: Parser Int
 numRecordsParser = fromIntegral <$> anyWord32le
+
+lengthHeaderParser :: Parser Int
+lengthHeaderParser = fromIntegral <$> anyWord16le
 
 data Version = FoxBase             -- FoxBase
              | NoDBT               -- File without DBT
