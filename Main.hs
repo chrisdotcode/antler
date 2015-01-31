@@ -1,6 +1,6 @@
 module Main where
 
-import Control.Applicative ((<$>), (<*>))
+import Control.Applicative ((<$>))
 import Data.ByteString as B (readFile)
 import Data.Time.Calendar (Day, fromGregorian)
 import System.Environment (getArgs)
@@ -24,12 +24,14 @@ data DBF = DBF
     } deriving (Show)
 
 xbase :: Parser DBF
-xbase = DBF <$>
-    versionParser <*>
-    lastUpdateParser <*>
-    numRecordsParser <*>
-    lengthHeaderParser <*>
-    lengthRecordsParser
+xbase = do
+    version'       <- versionParser
+    lastUpdate'    <- lastUpdateParser
+    numRecords'    <- numRecordsParser
+    lengthHeader'  <- lengthHeaderParser
+    lengthRecords' <- lengthRecordsParser
+    reservedParser
+    return $ DBF version' lastUpdate' numRecords' lengthHeader' lengthRecords'
 
 versionParser :: Parser Version
 versionParser = toEnum . fromIntegral <$> anyWord8
@@ -53,6 +55,10 @@ lengthHeaderParser = fromIntegral <$> anyWord16le
 -- value.
 lengthRecordsParser :: Parser Int
 lengthRecordsParser = (subtract 1) . fromIntegral <$> anyWord16le
+
+-- Reserved for dBASE IV (value is 0x0000). Ignored.
+reservedParser :: Parser ()
+reservedParser = anyWord16le >> return ()
 
 data Version = FoxBase             -- FoxBase
              | NoDBT               -- File without DBT
