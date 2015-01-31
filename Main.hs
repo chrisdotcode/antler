@@ -22,6 +22,7 @@ data DBF = DBF
     , lengthHeader          :: Int
     , lengthRecords         :: Int
     , incompleteTransaction :: Bool
+    , encrypted             :: Bool
     } deriving (Show)
 
 xbase :: Parser DBF
@@ -33,6 +34,7 @@ xbase = do
     lengthRecords'         <- lengthRecordsParser
     reservedParser
     incompleteTransaction' <- incompleteTransactionParser
+    encrypted'             <- encryptedParser
     return $ DBF
         version'
         lastUpdate'
@@ -40,6 +42,7 @@ xbase = do
         lengthHeader'
         lengthRecords'
         incompleteTransaction'
+        encrypted'
 
 versionParser :: Parser Version
 versionParser = toEnum . fromIntegral <$> anyWord8
@@ -68,10 +71,14 @@ lengthRecordsParser = (subtract 1) . fromIntegral <$> anyWord16le
 reservedParser :: Parser ()
 reservedParser = anyWord16le >> return ()
 
--- dBASE IV.
+-- For dBASE IV.
 incompleteTransactionParser :: Parser Bool
 incompleteTransactionParser =
     (word8 0x00 >> return False) <|> (word8 0x01 >> return True)
+
+-- For dBASE IV.
+encryptedParser :: Parser Bool
+encryptedParser = (word8 0x00 >> return False) <|> (word8 0x01 >> return True)
 
 data Version = FoxBase             -- FoxBase
              | NoDBT               -- File without DBT
