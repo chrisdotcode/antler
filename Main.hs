@@ -16,10 +16,11 @@ main = do
         _      -> error "Please supply a .dbf file as the first arg."
 
 data DBF = DBF
-    { version      :: Version
-    , lastUpdate   :: Day
-    , numRecords   :: Int
-    , lengthHeader :: Int
+    { version       :: Version
+    , lastUpdate    :: Day
+    , numRecords    :: Int
+    , lengthHeader  :: Int
+    , lengthRecords :: Int
     } deriving (Show)
 
 xbase :: Parser DBF
@@ -28,6 +29,7 @@ xbase = DBF <$>
     lastUpdateParser <*>
     numRecordsParser <*>
     lengthHeaderParser <*>
+    lengthRecordsParser
 
 versionParser :: Parser Version
 versionParser = toEnum . fromIntegral <$> anyWord8
@@ -46,6 +48,11 @@ numRecordsParser = fromIntegral <$> anyWord32le
 
 lengthHeaderParser :: Parser Int
 lengthHeaderParser = fromIntegral <$> anyWord16le
+
+-- Sum of lengths of all fields + 1 (deletion flag), so - 1 from the field
+-- value.
+lengthRecordsParser :: Parser Int
+lengthRecordsParser = (subtract 1) . fromIntegral <$> anyWord16le
 
 data Version = FoxBase             -- FoxBase
              | NoDBT               -- File without DBT
