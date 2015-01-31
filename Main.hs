@@ -5,7 +5,8 @@ import Data.ByteString as B (readFile)
 import Data.Time.Calendar (Day, fromGregorian)
 import System.Environment (getArgs)
 
-import Data.Attoparsec.ByteString
+import Data.Attoparsec.Binary (anyWord32le)
+import Data.Attoparsec.ByteString (Parser(..), anyWord8, parseOnly)
 
 main :: IO ()
 main = do
@@ -17,10 +18,11 @@ main = do
 data DBF = DBF
     { version    :: Version
     , lastUpdate :: Day
+    , numRecords :: Int
     } deriving (Show)
 
 xbase :: Parser DBF
-xbase = DBF <$> versionParser <*> lastUpdateParser
+xbase = DBF <$> versionParser <*> lastUpdateParser <*> numRecordsParser
 
 versionParser :: Parser Version
 versionParser = toEnum . fromIntegral <$> anyWord8
@@ -33,6 +35,9 @@ lastUpdateParser = do
     month <- fromIntegral <$> anyWord8
     day   <- fromIntegral <$> anyWord8
     return $ fromGregorian year month day
+
+numRecordsParser :: Parser Int
+numRecordsParser = fromIntegral <$> anyWord32le
 
 data Version = FoxBase             -- FoxBase
              | NoDBT               -- File without DBT
