@@ -31,6 +31,7 @@ data DBF = DBF
     , incompleteTransaction :: Bool
     , encrypted             :: Bool
     , mdxFlag               :: Word8
+    , languageDriver        :: LanguageDriver
     } deriving (Show)
 
 xbase :: A.Parser DBF
@@ -46,6 +47,7 @@ xbase = do
     freeRecordThreadParser
     multiUserParser
     mdxFlag'               <- mdxFlagParser
+    languageDriver'        <- languageDriverParser
     return $ DBF
         version'
         lastUpdate'
@@ -55,6 +57,7 @@ xbase = do
         incompleteTransaction'
         encrypted'
         mdxFlag'
+        languageDriver'
 
 versionParser :: A.Parser Version
 versionParser = toEnum . fromIntegral <$> A.anyWord8
@@ -105,6 +108,9 @@ multiUserParser = A.take 8 >> return ()
 mdxFlagParser :: A.Parser Word8
 mdxFlagParser = A.anyWord8
 
+languageDriverParser :: A.Parser LanguageDriver
+languageDriverParser = toEnum . fromIntegral <$> A.anyWord8
+
 data Version = FoxBase             -- FoxBase
              | NoDBT               -- File without DBT
              | DBASEIVNoMemo       -- dBASE IV w/o memo file
@@ -129,6 +135,7 @@ data Version = FoxBase             -- FoxBase
                                    -- So, 3->6, 83h->86h, F5->F6, E5->E6 etc.
              | FoxProMemo          -- FoxPro w. memo file
              | FoxProUnknown       -- FoxPro ???
+             | UnknownVersion
              deriving (Show)
 
 instance Enum Version where
@@ -152,6 +159,7 @@ instance Enum Version where
     toEnum 0xE5 = ClipperSIXSMTMemo
     toEnum 0xF5 = FoxProMemo
     toEnum 0xFB = FoxProUnknown
+    toEnum _    = UnknownVersion
 
     fromEnum FoxBase             = 0x02
     fromEnum NoDBT               = 0x03
@@ -171,3 +179,67 @@ instance Enum Version where
     fromEnum ClipperSIXSMTMemo   = 0xE5
     fromEnum FoxProMemo          = 0xF5
     fromEnum FoxProUnknown       = 0xFB
+
+data LanguageDriver = DOSUSA                   -- DOS USA
+                    | DOSMultilingual          -- DOS Multilingual
+                    | WindowsANSI              -- Windows ANSI
+                    | StandardMacintosh        -- Standard Macintosh
+                    | EEMSDOS                  -- EE MS-DOS
+                    | NordicMSDOS              -- Nordic MS-DOS
+                    | RussianMSDOS             -- Russian MS-DOS
+                    | IcelandicMSDOS           -- Icelandic MS-DOS
+                    | KamenickyMSDOS           -- Kamenicky (Cz0xec) MS-DOS
+                    | MazoviaMSDOS             -- Mazovia (Polish) MS-DOS
+                    | GreekMSDOS               -- Greek MS-DOS (437G)
+                    | TurkishMSDOS             -- Turkish MS-DOS
+                    | RussianMacintosh         -- Russian Macintosh
+                    | EasternEuropeanMacintosh -- Eastern European Macintosh
+                    | GreekMacintosh           -- Greek Macintosh
+                    | WindowsEE                -- Windows EE
+                    | RussianWindows           -- Russian Windows
+                    | TurkishWindows           -- Turkish Windows
+                    | GreekWindows             -- Greek Windows
+                    | UnknownLanguageDriver
+                    deriving (Show)
+
+instance Enum LanguageDriver where
+    toEnum 0x01 = DOSUSA
+    toEnum 0x02 = DOSMultilingual
+    toEnum 0x03 = WindowsANSI
+    toEnum 0x04 = StandardMacintosh
+    toEnum 0x64 = EEMSDOS
+    toEnum 0x65 = NordicMSDOS
+    toEnum 0x66 = RussianMSDOS
+    toEnum 0x67 = IcelandicMSDOS
+    toEnum 0x68 = KamenickyMSDOS
+    toEnum 0x69 = MazoviaMSDOS
+    toEnum 0x6A = GreekMSDOS
+    toEnum 0x6B = TurkishMSDOS
+    toEnum 0x96 = RussianMacintosh
+    toEnum 0x97 = EasternEuropeanMacintosh
+    toEnum 0x98 = GreekMacintosh
+    toEnum 0xC8 = WindowsEE
+    toEnum 0xC9 = RussianWindows
+    toEnum 0xCA = TurkishWindows
+    toEnum 0xCB = GreekWindows
+    toEnum _    = UnknownLanguageDriver
+
+    fromEnum DOSUSA                   = 0x01
+    fromEnum DOSMultilingual          = 0x02
+    fromEnum WindowsANSI              = 0x03
+    fromEnum StandardMacintosh        = 0x04
+    fromEnum EEMSDOS                  = 0x64
+    fromEnum NordicMSDOS              = 0x65
+    fromEnum RussianMSDOS             = 0x66
+    fromEnum IcelandicMSDOS           = 0x67
+    fromEnum KamenickyMSDOS           = 0x68
+    fromEnum MazoviaMSDOS             = 0x69
+    fromEnum GreekMSDOS               = 0x6A
+    fromEnum TurkishMSDOS             = 0x6B
+    fromEnum RussianMacintosh         = 0x96
+    fromEnum EasternEuropeanMacintosh = 0x97
+    fromEnum GreekMacintosh           = 0x98
+    fromEnum WindowsEE                = 0xC8
+    fromEnum RussianWindows           = 0xC9
+    fromEnum TurkishWindows           = 0xCA
+    fromEnum GreekWindows             = 0xCB
