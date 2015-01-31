@@ -5,14 +5,20 @@ import Data.ByteString as B (readFile)
 import Data.Time.Calendar (Day, fromGregorian)
 import System.Environment (getArgs)
 
-import Data.Attoparsec.Binary (anyWord16le, anyWord32le)
-import Data.Attoparsec.ByteString (Parser, anyWord8, parseOnly, word8)
+import qualified Data.Attoparsec.Binary as A (anyWord16le, anyWord32le)
+import qualified Data.Attoparsec.ByteString as A
+    ( Parser
+    , anyWord8
+    , parseOnly
+    , take
+    , word8
+    )
 
 main :: IO ()
 main = do
     args <- getArgs
     case args of
-        (x:_) -> B.readFile x >>= print . parseOnly xbase
+        (x:_) -> B.readFile x >>= print . A.parseOnly xbase
         _      -> error "Please supply a .dbf file as the first arg."
 
 data DBF = DBF
@@ -25,7 +31,7 @@ data DBF = DBF
     , encrypted             :: Bool
     } deriving (Show)
 
-xbase :: Parser DBF
+xbase :: A.Parser DBF
 xbase = do
     version'               <- versionParser
     lastUpdate'            <- lastUpdateParser
@@ -35,6 +41,7 @@ xbase = do
     reservedParser
     incompleteTransaction' <- incompleteTransactionParser
     encrypted'             <- encryptedParser
+    freeRecordThreadParser
     return $ DBF
         version'
         lastUpdate'
@@ -44,41 +51,46 @@ xbase = do
         incompleteTransaction'
         encrypted'
 
-versionParser :: Parser Version
-versionParser = toEnum . fromIntegral <$> anyWord8
+versionParser :: A.Parser Version
+versionParser = toEnum . fromIntegral <$> A.anyWord8
 
 -- Little-endian; Year value has a range within 0x0-0xFF, and 1900 is added to
 -- that value. Therefore the date range is 1900-2155.
-lastUpdateParser :: Parser Day
+lastUpdateParser :: A.Parser Day
 lastUpdateParser = do
-    year  <- (+ 1900) . fromIntegral <$> anyWord8
-    month <- fromIntegral <$> anyWord8
-    day   <- fromIntegral <$> anyWord8
+    year  <- (+ 1900) . fromIntegral <$> A.anyWord8
+    month <- fromIntegral <$> A.anyWord8
+    day   <- fromIntegral <$> A.anyWord8
     return $ fromGregorian year month day
 
-numRecordsParser :: Parser Int
-numRecordsParser = fromIntegral <$> anyWord32le
+numRecordsParser :: A.Parser Int
+numRecordsParser = fromIntegral <$> A.anyWord32le
 
-lengthHeaderParser :: Parser Int
-lengthHeaderParser = fromIntegral <$> anyWord16le
+lengthHeaderParser :: A.Parser Int
+lengthHeaderParser = fromIntegral <$> A.anyWord16le
 
 -- Sum of lengths of all fields + 1 (deletion flag), so - 1 from the field
 -- value.
-lengthRecordsParser :: Parser Int
-lengthRecordsParser = (subtract 1) . fromIntegral <$> anyWord16le
+lengthRecordsParser :: A.Parser Int
+lengthRecordsParser = (subtract 1) . fromIntegral <$> A.anyWord16le
 
 -- Reserved for dBASE IV (value is 0x0000). Ignored.
-reservedParser :: Parser ()
-reservedParser = anyWord16le >> return ()
+reservedParser :: A.Parser ()
+reservedParser = A.anyWord16le >> return ()
 
 -- For dBASE IV.
-incompleteTransactionParser :: Parser Bool
+incompleteTransactionParser :: A.Parser Bool
 incompleteTransactionParser =
-    (word8 0x00 >> return False) <|> (word8 0x01 >> return True)
+    (A.word8 0x00 >> return False) <|> (A.word8 0x01 >> return True)
 
 -- For dBASE IV.
-encryptedParser :: Parser Bool
-encryptedParser = (word8 0x00 >> return False) <|> (word8 0x01 >> return True)
+encryptedParser :: A.Parser Bool
+encryptedParser =
+    (A.word8 0x00 >> return False) <|> (A.word8 0x01 >> return True)
+
+-- Free record thread. (Reserved for LAN only). Ignored.
+freeRecordThreadParser :: A.Parser ()
+freeRecordThreadParser = A.take 4 >> return ()
 
 data Version = FoxBase             -- FoxBase
              | NoDBT               -- File without DBT
